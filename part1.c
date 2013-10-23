@@ -4,6 +4,7 @@
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
+    /*
     // the x coordinate of the kernel's center
     int kern_cent_X = (KERNX - 1)/2;
     // the y coordinate of the kernel's center
@@ -24,5 +25,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 			}
 		}
 	}
+    */
+
+    
 	return 1;
+
+    
 }
