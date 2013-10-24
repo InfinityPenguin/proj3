@@ -23,13 +23,15 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     // main convolution loop
     for(int y = 0; y < data_size_Y; y++){ // the y coordinate of theoutput location we're focusing on
 	for(int x = 0; x + 3 < data_size_X; x+=4){ // the x coordinate of the output location we're focusing on
-	    __m128i n = _mm_loadu_si128((__m128i*) (out+x+y*data_size_X)); //getting the next four values of output matrix
+	    float* out_index = out+x+y*data_size_X;
+	    __m128i n = _mm_loadu_si128((__m128i*) (out_index)); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
 		__m128i kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
-		__m128i m = _mm_loadu_ps(buf);
-		//	out[x+y*data_size_X] += 
-		//	  kernel[(kern_cent_X-i)+(kern_cent_Y-j)*KERNX] * in[(x+i) + (y+j)*data_size_X];
-		  }
+		__m128i m = _mm_loadu_ps(buf+(x+i%3)+(y+i/3)*(data_size_X+2)); //load four adjacent values from buf
+		__m128i product = _mm_mul_ps(kk,m);//multiply kk and m
+		n = _mm_add_ps(n, product);//add the product to n
+		_mm_storeu_ps(out_index,n);
+	     }
 	  }
 	}
     
