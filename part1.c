@@ -5,6 +5,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
     //UPDATE: should work for matrices of variable length now!
+    //UPDATE: fixed small bugs
     
     //flipping the kernel
     float k[KERNX*KERNY];
@@ -40,8 +41,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
 		__m128 m = _mm_loadu_ps(buf+(x+i%3)+(y+i/3)*(buf_x)); //load four adjacent values from buf
 		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
-		_mm_storeu_ps(out_index,n);
 	     }
+	     _mm_storeu_ps(out_index,n);
 	  }
 	for (;x<data_size_X;x++) {
 	    float* out_index = out+x+y*data_size_X;
@@ -50,12 +51,13 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
 		__m128 m = _mm_loadu_ps(buf+(x+i%3)+(y+i/3)*(buf_x)); //load four adjacent values from buf
 		n = _mm_add_ps(n, _mm_mul_ps(kk, m));//multiply and add the product to n
-		float tmp[4];
-		_mm_storeu_ps(tmp,n);
-		int j;
-		for (j=0; j<data_size_X%4; j++) {
-		    *out_index = tmp[j];
-		}
+
+	     }
+	     float tmp[4];
+	     _mm_storeu_ps(tmp,n);
+	     int j;
+	     for (j=0; j<data_size_X%4; j++) {
+		*out_index = tmp[j];
 	     }
 	}
 	
