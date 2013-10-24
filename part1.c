@@ -1,4 +1,6 @@
 #include <emmintrin.h>
+#include <string.h> // for use of memset
+#include <stdio.h> // printf
 #define KERNX 3 //this is the x-size of the kernel. It will always be odd.
 #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
@@ -9,19 +11,34 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     
     //UPDATE: unrolled loop!
 
+/*	printf("kernel: "); // debugging: print the kernel
+	for (int i = 0; i < KERNX*KERNY; i++) {
+		printf("%.2f ", kernel[i]);
+	}
+	printf("\n");
+*/
+
     //flipping the kernel
     float k[KERNX*KERNY];
-    for (int i = 0; i<KERNX*KERNY/2; i++) {
+    for (int i = 0; i<KERNX*KERNY; i++) { 
 	k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
     }
+
+/*	printf("flipped kernel: "); // debugging: print the flipped kernel
+	for (int i = 0; i < KERNX*KERNY; i++) {
+  		printf("%.2f ", k[i]); 
+	}
+	printf("\n");
+*/
 
     //zero pad the matrix "in" and call it "buf". Example: if "in" was 4x4, then copy it onto buf while padding it so that it is 6x6. remember to keep buf as a 1-D array, row-wise implemented
     int buf_x = data_size_X+2+data_size_X%4; //account for cases where length is not divisible by 4
     int buf_y = data_size_Y+2;
-
-    const int buf_size = buf_x*buf_y;
+    int buf_size = buf_x*buf_y;
     
-    float buf[buf_size]= {0.0}; //initialize all buffer elements to zero
+    // float buf[buf_size]= {0.0}; //initialize all buffer elements to zero
+    float buf[buf_size];
+    memset(buf, 0.0, buf_size*sizeof(float));
  
     for (int j = 1; j <= data_size_Y; j++) {
        for (int i = 1; i <= data_size_X; i++) {
@@ -38,7 +55,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     // main convolution loop
     int x;
     int y;
-    for(y = 0; y < data_size_Y; y++){ // the y coordinate of theoutput location we're focusing on
+    for(y = 0; y < data_size_Y; y++){ // the y coordinate of the output location we're focusing on
 	for(x = 0; x + 15 < data_size_X; x+=16){ // the x coordinate of the output location we're focusing on
 	    float* out_index = out+x+y*data_size_X;
 	    __m128 n = _mm_loadu_ps(out_index); //getting the next four values of output matrix
