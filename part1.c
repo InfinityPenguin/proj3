@@ -101,6 +101,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	}
 	/*
 	if (data_size_X%4!=0) {
+
 	    for (;x<data_size_X;x++) {
 		float* out_index = out+x+y*data_size_X;
 		__m128 n = _mm_setzero_ps();
@@ -122,14 +123,14 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	}
 	*/
 
+
 	if (data_size_X%4!=0) {
 	    for (; x<data_size_X; x++) {
 		for (int i=0; i<KERNX*KERNY; i++ ) {
-		    out[x+y*data_size_X] += k[i]*buf[x+i%KERNX+(y+i/KERNY)*buf_x];
+		    out[x+y*data_size_X] += k[i]*buf[x+i%3+(y+i/3)*buf_x];
 		}
 	    }
 	}
-	
 	}
     
     return 1;
