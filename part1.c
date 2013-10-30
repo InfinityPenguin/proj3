@@ -6,10 +6,11 @@
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
+	// update: making the buffer uses simd instructions
     //UPDATE: should work for matrices of variable length now!
     //UPDATE: fixed small bugs
 
-    //UPDATE: unrolled loop!
+    //UPDATE: unrolled loop! 
 
 /*	printf("kernel: "); // debugging: print the kernel
 	for (int i = 0; i < KERNX*KERNY; i++) {
@@ -51,14 +52,13 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     for (int j = 1; j <= data_size_Y; j++) {
        for (int i = 1; i + 3 <= data_size_X; i+=4) {
 		_mm_storeu_ps(buf + i + j * buf_x, _mm_loadu_ps(in + (i - 1) + (j - 1)*data_size_X));	
-	    //buf[i+j*(buf_x)] = in[(i-1)+(j-1)*data_size_X]; //update the elements with in
 	}
 	for (int i = data_size_X - data_size_X % 4; i <= data_size_X; i++) {
 	    buf[i+j*(buf_x)] = in[(i-1)+(j-1)*data_size_X]; //update the elements with in
 	}
     }
 
-/*	printf("buffered input:\n"); // debuggin: print the buffered input
+/*	printf("buffered input:\n"); // debugging: print the buffered input
 	for (int i = 0; i < buf_x * buf_y; i++) {
 		printf("%.2f ", buf[i]);
 		if ((i + 1) % buf_x == 0)
