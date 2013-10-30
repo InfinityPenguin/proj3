@@ -6,6 +6,8 @@
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
+	// there is a strange bug for very specific input dimensions! (1, 4), (1, 5), (2, 5) all calculate through and give an avg glop/s, but then gives the weird error
+	// update: added more unrolling
 	// update: fixed edge cases; ALL kernel calculations now use sse
 	// update: no need to completely recalculate the out index after each loop unroll, since y doesn't change.  
 	// update: making the buffer uses sse instructions
@@ -47,16 +49,15 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     int buf_y = data_size_Y+2;
     int buf_size = buf_x*buf_y;
     
-    // float buf[buf_size]= {0.0}; //initialize all buffer elements to zero
     float buf[buf_size];
     memset(buf, 0.0, buf_size*sizeof(float));
  
-    for (int j = 1; j <= data_size_Y; j++) {
-       for (int i = 1; i + 3 <= data_size_X; i+=4) {
-		_mm_storeu_ps(buf + i + j * buf_x, _mm_loadu_ps(in + (i - 1) + (j - 1)*data_size_X));	
+    for (int j = 0; j < data_size_Y; j++) {
+       for (int i = 0; i + 3 < data_size_X; i+=4) {
+		_mm_storeu_ps(buf + (i + 1) + (j + 1) * buf_x, _mm_loadu_ps(in + i + j*data_size_X));	
 	}
-	for (int i = data_size_X - data_size_X % 4; i <= data_size_X; i++) {
-	    buf[i+j*(buf_x)] = in[(i-1)+(j-1)*data_size_X]; //update the elements with in
+	for (int i = data_size_X - data_size_X % 4; i < data_size_X; i++) {
+	    buf[(i+1)+(j+1)*(buf_x)] = in[i + j*data_size_X]; //update the elements with in
 	}
     }
 
@@ -67,14 +68,13 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 			printf("\n");
 	}
 */
-	
-    
+   
     // main convolution loop
     int x;
     int y;
 
     for(y = 0; y < data_size_Y; y++){ // the y coordinate of the output location we're focusing on
-	for(x = 0; x + 15 < data_size_X; x+=16){ // the x coordinate of the output location we're focusing on
+	for(x = 0; x + 31 < data_size_X; x+=32){ // the x coordinate of the output location we're focusing on
 	    float* out_index = out+x+y*data_size_X;
 	    __m128 n =  _mm_setzero_ps(); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
@@ -83,8 +83,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
 	     }
 	     _mm_storeu_ps(out_index,n);
-	    out_index += 4;
 
+	    out_index += 4;
 	    n =  _mm_setzero_ps(); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
 		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
@@ -110,6 +110,42 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
 	     }
 	     _mm_storeu_ps(out_index,n);
+
+	    out_index += 4;
+	     n =  _mm_setzero_ps(); //getting the next four values of output matrix
+	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
+		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
+		__m128 m = _mm_loadu_ps(buf+(x+16+i%KERNX)+(y+i/KERNY)*(buf_x)); //load four adjacent values from buf
+		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
+	     }
+	     _mm_storeu_ps(out_index,n);
+	
+	    out_index += 4;
+	     n =  _mm_setzero_ps(); //getting the next four values of output matrix
+	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
+		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
+		__m128 m = _mm_loadu_ps(buf+(x+20+i%KERNX)+(y+i/KERNY)*(buf_x)); //load four adjacent values from buf
+		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
+	     }
+	     _mm_storeu_ps(out_index,n);
+
+	    out_index += 4;
+	     n =  _mm_setzero_ps(); //getting the next four values of output matrix
+	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
+		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
+		__m128 m = _mm_loadu_ps(buf+(x+24+i%KERNX)+(y+i/KERNY)*(buf_x)); //load four adjacent values from buf
+		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
+	     }
+	     _mm_storeu_ps(out_index,n);
+	
+	    out_index += 4;
+	     n =  _mm_setzero_ps(); //getting the next four values of output matrix
+	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
+		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
+		__m128 m = _mm_loadu_ps(buf+(x+28+i%KERNX)+(y+i/KERNY)*(buf_x)); //load four adjacent values from buf
+		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
+	     }
+	     _mm_storeu_ps(out_index,n);
 	  }
 
 	for (;x<data_size_X;x+=4) {
@@ -121,18 +157,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 		n = _mm_add_ps(n, _mm_mul_ps(kk, m));//multiply and add the product to n
 	     }
 	    _mm_storeu_ps(out_index,n);
+	} 
 	}
-
-/*	if (data_size_X%4!=0) {
-	    for (; x<data_size_X; x++) {
-		for (int i=0; i<KERNX*KERNY; i++ ) {
-		    out[x+y*data_size_X] += k[i]*buf[x+i%3+(y+i/3)*buf_x];
-		}
-	    }
-	}
-*/
-	}
-    
     return 1;
     
 }
