@@ -6,6 +6,7 @@
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
+	// small improvement: no need to completely recalculate the out index after each loop unroll, since y doesn't change.  
 	// update: making the buffer uses simd instructions
     //UPDATE: should work for matrices of variable length now!
     //UPDATE: fixed small bugs
@@ -81,8 +82,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 		n = _mm_add_ps(n, _mm_mul_ps(kk,m));//multiply and add the product to n
 	     }
 	     _mm_storeu_ps(out_index,n);
-
-	    out_index = out+x+4+y*data_size_X;
+	    out_index += 4;
 	    n =  _mm_setzero_ps(); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
 		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
@@ -91,7 +91,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	     }
 	     _mm_storeu_ps(out_index,n);
 
-	    out_index = out+x+8+y*data_size_X;
+	    out_index += 4;
 	    n =  _mm_setzero_ps(); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
 		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
@@ -100,7 +100,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	     }
 	     _mm_storeu_ps(out_index,n);
 
-	     out_index = out+x+12+y*data_size_X;
+	    out_index += 4;
 	     n =  _mm_setzero_ps(); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
 		__m128 kk =  _mm_load1_ps(k+i); //load four of the same value of k[i]
