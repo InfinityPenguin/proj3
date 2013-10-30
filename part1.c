@@ -1,35 +1,11 @@
 #include <emmintrin.h>
-#include <string.h> // for use of memset
-#include <stdio.h> // printf
+#include<string.h>
+#include <omp.h>
 #define KERNX 3 //this is the x-size of the kernel. It will always be odd.
 #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
-        // there is a strange bug for very specific input dimensions! (1, 4), (1, 5), (2, 5) all calculate through and give an avg glop/s, but then gives the weird error
-        // update: added more unrolling
-        // update: fixed edge cases; ALL kernel calculations now use sse
-        // update: no need to completely recalculate the out index after each loop unroll, since y doesn't change.  
-        // update: making the buffer uses sse instructions
-    //UPDATE: should work for matrices of variable length now!
-    //UPDATE: fixed small bugs
-
-    //UPDATE: unrolled loop! 
-
-/*        printf("kernel: "); // debugging: print the kernel
-        for (int i = 0; i < KERNX*KERNY; i++) {
-                printf("%.2f ", kernel[i]);
-        }
-        printf("\n");
-*/
-
-/*        printf("input:\n"); // debugging: print the input matrix
-        for (int i = 0; i < data_size_X * data_size_Y; i++) {
-                printf("%.2f ", in[i]);
-                if ((i + 1) % data_size_X == 0)
-                        printf("\n");
-        }
-*/
 
     //flipping the kernel
     float k[KERNX*KERNY];
@@ -45,7 +21,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 */
 
     //zero pad the matrix "in" and call it "buf". Example: if "in" was 4x4, then copy it onto buf while padding it so that it is 6x6. remember to keep buf as a 1-D array, row-wise implemented
-    int buf_x = data_size_X+2+ 2;//account for cases where length is not divisible by 4
+    int buf_x = data_size_X+2+(4-data_size_X%4);//account for cases where length is not divisible by 4
     int buf_y = data_size_Y+2;
     int buf_size = buf_x*buf_y;
     
@@ -53,10 +29,11 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     memset(buf, 0.0, buf_size*sizeof(float));
  
     for (int j = 0; j < data_size_Y; j++) {
-       for (int i = 0; i + 3 < data_size_X; i+=4) {
+       int i;
+       for (i = 0; i + 3 < data_size_X; i+=4) {
                 _mm_storeu_ps(buf + (i + 1) + (j + 1) * buf_x, _mm_loadu_ps(in + i + j*data_size_X));        
         }
-        for (int i = data_size_X - data_size_X % 4; i < data_size_X; i++) {
+        for (; i < data_size_X; i++) {
             buf[(i+1)+(j+1)*(buf_x)] = in[i + j*data_size_X]; //update the elements with in
         }
     }
@@ -148,7 +125,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
              _mm_storeu_ps(out_index,n);
           }
 
-        for (;x<data_size_X;x+=4) {
+        for (;x+3<data_size_X;x+=4) {
             float* out_index = out+x+y*data_size_X;
             __m128 n = _mm_setzero_ps();
             for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal               
@@ -157,8 +134,15 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                 n = _mm_add_ps(n, _mm_mul_ps(kk, m));//multiply and add the product to n
              }
             _mm_storeu_ps(out_index,n);
-        } 
+        }
+
+                    for(;x<data_size_X;x++) {
+	    float sum = 0.0;
+	    for (int i = 0; i<KERNX*KERNY;i++) {
+		sum += buf[x+i%KERNX+(y+i/KERNY)*buf_x]*k[i];
+	    }
+	    out[x+y*data_size_X] = sum;
+	}
         }
     return 1;
-    
 }
