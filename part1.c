@@ -3,6 +3,9 @@
 #include <stdio.h> // printf
 #define KERNX 3 //this is the x-size of the kernel. It will always be odd.
 #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
+#define BLOCK_X 32  //cacheblocking
+#define BLOCK_Y 65  //cacheblocking
+
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                     float* kernel)
 {
@@ -72,9 +75,13 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     // main convolution loop
     int x;
     int y;
+	int z;
+	int w;
 
-    for(y = 0; y < data_size_Y; y++){ // the y coordinate of the output location we're focusing on
-	for(x = 0; x + 31 < data_size_X; x+=32){ // the x coordinate of the output location we're focusing on
+	for (z = 0; z < data_size_Y; z+= BLOCK_Y) {
+	for (w = 0; w < data_size_X; w+= BLOCK_X) {
+    for(y = z; y < z + BLOCK_Y && y < data_size_Y; y++){ // the y coordinate of the output location we're focusing on
+	for(x = w; x + 31 < w + BLOCK_X && x + 31 < data_size_X; x+=32){ // the x coordinate of the output location we're focusing on
 	    float* out_index = out+x+y*data_size_X;
 	    __m128 n =  _mm_setzero_ps(); //getting the next four values of output matrix
 	    for (int i = 0; i < KERNX*KERNY;i++) { //iterating through kernal	       
@@ -159,6 +166,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	    _mm_storeu_ps(out_index,n);
 	} 
 	}
+}
+}
     return 1;
     
 }
