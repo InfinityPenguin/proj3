@@ -8,7 +8,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 {
     //UPDATE: should work for matrices of variable length now!
     //UPDATE: fixed small bugs
-    
+	// testing
     //UPDATE: unrolled loop!
 
 /*	printf("kernel: "); // debugging: print the kernel
@@ -32,7 +32,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 */
 
     //zero pad the matrix "in" and call it "buf". Example: if "in" was 4x4, then copy it onto buf while padding it so that it is 6x6. remember to keep buf as a 1-D array, row-wise implemented
-    int buf_x = data_size_X+2+(8-data_size_X%4); //account for cases where length is not divisible by 4
+    int buf_x = data_size_X+2;//account for cases where length is not divisible by 4
     int buf_y = data_size_Y+2;
     int buf_size = buf_x*buf_y;
     
