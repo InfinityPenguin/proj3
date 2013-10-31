@@ -145,4 +145,4 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	}
         }
     return 1;
-
+}
