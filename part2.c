@@ -9,9 +9,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
     //flipping the kernel
     float k[KERNX*KERNY];
-    for (int i = 0; i<KERNX*KERNY; i++) { 
-        k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
-    }
+	#pragma omp parallel for num_threads(2) 
+    	for (int i = 0; i<KERNX*KERNY; i++) { 
+       	 k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
+	}
 
 /*        printf("flipped kernel: "); // debugging: print the flipped kernel
         for (int i = 0; i < KERNX*KERNY; i++) {
