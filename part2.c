@@ -8,12 +8,11 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 {
 
     //flipping the kernel
-    float k[KERNX*KERNY];
-	#pragma omp parallel for num_threads(2) 
-    	for (int i = 0; i<KERNX*KERNY; i++) { 
-       	 k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
-	}
-
+    
+   float k[KERNX*KERNY];
+   for (int i = 0; i<KERNX*KERNY; i++) { 
+        k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
+   }
 /*        printf("flipped kernel: "); // debugging: print the flipped kernel
         for (int i = 0; i < KERNX*KERNY; i++) {
                   printf("%.2f ", k[i]); 
@@ -28,8 +27,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     
     float buf[buf_size];
     memset(buf, 0.0, buf_size*sizeof(float));
- 
-    for (int j = 0; j < data_size_Y; j++) {
+
+    int j;
+    #pragma omp parallel for num_threads(16) private(j)
+    for (j = 0; j < data_size_Y; j++) {
        int i;
        for (i = 0; i + 3 < data_size_X; i+=4) {
                 _mm_storeu_ps(buf + (i + 1) + (j + 1) * buf_x, _mm_loadu_ps(in + i + j*data_size_X));        
@@ -50,7 +51,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     // main convolution loop
     int x;
     int y;
-
+#pragma omp parallel for num_threads(16) private(x,y)
     for(y = 0; y < data_size_Y; y++){ // the y coordinate of the output location we're focusing on
         for(x = 0; x + 31 < data_size_X; x+=32){ // the x coordinate of the output location we're focusing on
             float* out_index = out+x+y*data_size_X;
