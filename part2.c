@@ -13,12 +13,6 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
    for (int i = 0; i<KERNX*KERNY; i++) { 
         k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
    }
-/*        printf("flipped kernel: "); // debugging: print the flipped kernel
-        for (int i = 0; i < KERNX*KERNY; i++) {
-                  printf("%.2f ", k[i]); 
-        }
-        printf("\n");
-*/
 
     //zero pad the matrix "in" and call it "buf". Example: if "in" was 4x4, then copy it onto buf while padding it so that it is 6x6. remember to keep buf as a 1-D array, row-wise implemented
  
