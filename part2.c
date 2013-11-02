@@ -15,8 +15,6 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
    }
 
     //zero pad the matrix "in" and call it "buf". Example: if "in" was 4x4, then copy it onto buf while padding it so that it is 6x6. remember to keep buf as a 1-D array, row-wise implemented
- 
-    
     int j;
     int y_cap;
     if (data_size_X*data_size_Y< 390000) { //check if the matrix is too large to fit in cache
@@ -43,7 +41,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
         }
     }
 
-    float* out_index;
+    float* out_index; //all variables we need to use later
     __m128 n;
     __m128 kk;
     __m128 m;
@@ -124,6 +122,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	}
         }
 	*/
+	
+	//first part of convolution
     int y_limit; //the last y we can update to out_index
     if (y_cap == data_size_Y)
 	y_limit = data_size_Y;
@@ -229,6 +229,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     if (y_limit == data_size_Y) //if y_limit is the number of rows in the in matrix, then we are done
 	return 1;
 
+//else we need to finish loading the rest of the in matrix into buf2, and then run through the convolution
     int buf2_x = data_size_X+2;
     int buf2_y = data_size_Y-y_cap+2;
     float buf2[buf2_x*buf2_y]; //now create a second buffer matrix with rest of in matrix
