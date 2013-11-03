@@ -159,10 +159,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     int buf2_y;
     int y_limit_2;
     int y_load;
-    if ((data_size_Y-y_cap)*data_size_X>390000) {
+    if ((data_size_Y-y_cap)*data_size_X>=390000) {
 	buf2_y = y_cap+2;
 	y_limit_2 = y_limit+y_cap;
-	y_load = buf2_y-2;
+	y_load = buf2_y-1;
     }
     else {
 	buf2_y = data_size_Y-y_cap+1+2;
@@ -294,9 +294,9 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
     int buf3_x=buf2_x;
     int buf3_y=data_size_Y-2*y_cap+1+2;
-    float buf3[buf3_x*buf3_y]; //now create a second buffer matrix with rest of in matrix
-    memset(buf2, 0.0, (buf3_x*buf3_y)*sizeof(float));
-    printf("made buf3!\n");
+    float buf3[buf3_x*buf3_y]; //now create a third buffer matrix with rest of in matrix
+    memset(buf3, 0.0, (buf3_x*buf3_y)*sizeof(float));
+    //printf("made buf3!\n");
     
     
 #pragma omp parallel for num_threads(16) firstprivate(buf_x,data_size_X,y_limit_2)
@@ -311,7 +311,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
             buf3[(i+1)+(j+1)*(buf3_x)] = in[i + (j+y_limit_2)*data_size_X]; //update the elements with in
         }
     }
-    printf("finished creating buf3!\n");
+    // printf("finished creating buf3!\n");
 #pragma omp parallel for num_threads(16) firstprivate(k,data_size_X,out_index, buf_x,n,kk,m,dy,y_limit_2)
     for(int y=y_limit_2; y < data_size_Y; y++){ // the y coordinate of the output location we're focusing on
 	int i;
@@ -417,4 +417,5 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     
     return 1;
 }
+
 
