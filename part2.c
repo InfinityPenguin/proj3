@@ -5,14 +5,14 @@
 #define KERNX 3 //this is the x-size of the kernel. It will always be odd.
 #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
 #define kernsize KERNX*KERNY	
-#define kernmid kernsize / 2
+#define kernmid kernsize >> 1
 #define numthreads 16
 
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y, float* kernel) {
 	// flipping the kernel
-	float k[KERNX*KERNY];
-	for (int i = 0; i<KERNX*KERNY; i++) { 
-		k[i] = kernel[KERNX*KERNY-1-i]; // k is flipped version of kernel
+	float k[kernsize];
+	for (int i = 0; i < kernsize; i++) { 
+		k[i] = kernel[kernsize - 1 - i]; // k is the flipped version of kernel
 	}
 
 	float* out_index; // variables needed later
@@ -23,8 +23,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y, float* kerne
 	int x;
 	int i;
 
-	int kern_cent_X = (KERNX - 1) / 2;
-	int kern_cent_Y = (KERNY - 1) / 2;
+	int kern_cent_X = KERNX >> 1;
+	int kern_cent_Y = KERNY >> 1;
 
 	for (int y = 0; y < data_size_Y; y++) { // left and right edge cases 
 		for (int x = 0; x < data_size_X; x += data_size_X - 1) {
@@ -40,7 +40,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y, float* kerne
 
 	for (x = 1; x + 3 < data_size_X - 1; x += 4) { // top row edge cases
 		n =  _mm_setzero_ps();		
-		for (int i = (KERNY / 2) * KERNX; i < kernsize; i++) {
+		for (int i = (KERNY >> 1) * KERNX; i < kernsize; i++) {
 			kk = _mm_load1_ps(k + i);
 			m = _mm_loadu_ps(in + x - 1 + i % KERNX + (i / KERNY - 1) * data_size_X);
 			n = _mm_add_ps(n, _mm_mul_ps(kk, m));
@@ -59,7 +59,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y, float* kerne
 
 	for (x = 1; x + 3 < data_size_X - 1; x += 4) { // bottom row edge cases
 		n =  _mm_setzero_ps();		
-		for (int i = 0; i < (KERNY / 2 + 1) * KERNX; i++) {
+		for (int i = 0; i < ((KERNY >> 1) + 1) * KERNX; i++) {
 			kk = _mm_load1_ps(k + i);
 			m = _mm_loadu_ps(in + x - 1 + i % KERNX + (data_size_Y - 2 + i / KERNX) * data_size_X);
 			n = _mm_add_ps(n, _mm_mul_ps(kk, m));
