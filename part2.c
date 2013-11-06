@@ -4,30 +4,29 @@
 #include <stdio.h>
 #define KERNX 3 //this is the x-size of the kernel. It will always be odd.
 #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
-#define blocksize 390000 
 #define kernsize KERNX*KERNY	
-#define kernmid kernsize/ 2
+#define kernmid kernsize / 2
+#define numthreads 16
 
-int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
-		float* kernel)
-{
-	//flipping the kernel
-
+int conv2D(float* in, float* out, int data_size_X, int data_size_Y, float* kernel) {
+	// flipping the kernel
 	float k[KERNX*KERNY];
 	for (int i = 0; i<KERNX*KERNY; i++) { 
-		k[i] = kernel[KERNX*KERNY-1-i]; //k is flipped version of kernel
+		k[i] = kernel[KERNX*KERNY-1-i]; // k is flipped version of kernel
 	}
 
-	float* out_index; // all variables we need to use later
+	float* out_index; // variables needed later
 	__m128 n;
 	__m128 kk;
 	__m128 m;
 	int dy;
+	int x;
+	int i;
 
 	int kern_cent_X = (KERNX - 1) / 2;
 	int kern_cent_Y = (KERNY - 1) / 2;
 
-	for (int y = 1; y < data_size_Y - 1; y++) {
+	for (int y = 0; y < data_size_Y; y++) { // left and right edge cases 
 		for (int x = 0; x < data_size_X; x += data_size_X - 1) {
 			for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
 				for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
@@ -37,24 +36,49 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 				}
 			}
 		}
-	}	
-	for (int y = 0; y < data_size_Y; y += data_size_Y - 1) {
-		for (int x = 0; x < data_size_X; x++) {
-			for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
-				for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
-					if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
-						out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
-					}
+	}
+
+	for (x = 1; x + 3 < data_size_X - 1; x += 4) { // top row edge cases
+		n =  _mm_setzero_ps();		
+		for (int i = (KERNY / 2) * KERNX; i < kernsize; i++) {
+			kk = _mm_load1_ps(k + i);
+			m = _mm_loadu_ps(in + x - 1 + i % KERNX + (i / KERNY - 1) * data_size_X);
+			n = _mm_add_ps(n, _mm_mul_ps(kk, m));
+		}
+		_mm_storeu_ps(out + x, n);
+	}
+	for (; x < data_size_X - 1; x++) {
+		for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
+			for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
+				if (j > -1 && j < data_size_Y) {
+					out[x] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + j * data_size_X];
 				}
 			}
 		}
-	}	
+	}
+
+	for (x = 1; x + 3 < data_size_X - 1; x += 4) { // bottom row edge cases
+		n =  _mm_setzero_ps();		
+		for (int i = 0; i < (KERNY / 2 + 1) * KERNX; i++) {
+			kk = _mm_load1_ps(k + i);
+			m = _mm_loadu_ps(in + x - 1 + i % KERNX + (data_size_Y - 2 + i / KERNX) * data_size_X);
+			n = _mm_add_ps(n, _mm_mul_ps(kk, m));
+		}
+		_mm_storeu_ps(out + x + (data_size_Y - 1) * data_size_X, n);
+	}
+	for (; x < data_size_X - 1; x++) {
+		for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
+			for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
+				if (data_size_Y - 1 + j > -1 && data_size_Y - 1 + j < data_size_Y) {
+					out[x + (data_size_Y - 1) * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (data_size_Y - 1 + j) * data_size_X];
+				}
+			}
+		}
+	}
 
 	// main convolution loop
-	int x;
-	int i;
-	#pragma omp parallel for num_threads(8) firstprivate(x, i, k,out_index, data_size_X,n,kk,m,dy)//lots of privatizing
-	for(int y = 1; y < data_size_Y - 1; y++){ // the y coordinate of the output location we're focusing on
+#pragma omp parallel for num_threads(numthreads) firstprivate(x, i, k, out_index, data_size_X, n, kk, m, dy)
+	for(int y = 1; y < data_size_Y - 1; y++) { // the y coordinate of the output location we're focusing on
 		for(x = 1; x + 31 < data_size_X - 1; x+=32){ // the x coordinate of the output location we're focusing on
 			out_index = out+x+y*data_size_X;
 			n =  _mm_setzero_ps(); //getting the next four values of output matrix
@@ -148,8 +172,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 			out[x+y*data_size_X] = sum;
 		}
 	}
-	//end convo loop
-	//y_prev = y_cap - 2;
-	//}
-return 1;
+	// end main convo loop
+
+	return 1;
 }
