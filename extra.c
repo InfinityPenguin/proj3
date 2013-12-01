@@ -28,43 +28,15 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
         __m128 n;
         __m128 kk;
         __m128 m;
-        int dy;
 
-#define kern_cent_X ((KERNX - 1) / 2)
-#define kern_cent_Y ((KERNY - 1) / 2)
-	/*
-	//top edge first
-	int y = 0;
-	for (int x = kern_cent_X; x+3 <data_size_X-kern_cent_X ;x+=4) {
-	    n = _mm_setzero_ps();
-	    for (int i=KERNX; i< kernsize;i++) {
-		kk = _mm_load1_ps(k+i);
-		m = _mm_loadu_ps(in+(x-kern_cent_X+i%KERNX)+(y-1+i/KERNX)*data_size_X);
-		n=_mm_add_ps(n,_mm_mul_ps(kk,m));
-	    }
-	    _mm_storeu_ps(out+x,n);
-	}
-	//edge of two sides
-
-	//bottom edge
-		y = data_size_Y-1
-	        for (int x = 0; x < data_size_X; x++) {
-                        for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
-                                for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
-                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
-                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
-                                        }
-                                }
-                        }
-                }
-	*/
-
+        #define kern_cent_X ((KERNX - 1) / 2)
+        #define kern_cent_Y ((KERNY - 1) / 2)
 	
 	//top part first
 	for (int y = 0; y < kern_cent_Y; y ++) {
                 for (int x = 0; x < data_size_X; x++) {
+		    for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
                         for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
-                                for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
                                         if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
                                                 out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
                                         }
@@ -72,49 +44,23 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                         }
                 }
         }
-
-	 //the two sides
-#pragma omp parallel for num_threads(16) firstprivate(data_size_Y, data_size_X,kernel)
-        for (int y = kern_cent_Y; y < data_size_Y - kern_cent_Y; y++) {
-                for (int x = 0; x < kern_cent_X; x ++) {
-		    for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
-                                for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
-                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
-                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
-                                        }
-                                }
-                        }
-                }
-
-		for (int x = data_size_X-kern_cent_X; x < data_size_X; x ++) {
-		    for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
-                                for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
-                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
-                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
-                                        }
-                                }
-                        }
-                }
-        }        
-
-	//bottom part
-	for (int y = data_size_Y-kern_cent_Y; y < data_size_Y; y ++) {
-                for (int x = 0; x < data_size_X; x++) {
-                        for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
-                                for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
-                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
-                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
-                                        }
-                                }
-                        }
-                }
-        }   
+  
 
         // main convolution loop
         int x;
         int i;
-#pragma omp parallel for num_threads(16) firstprivate( x, i, k,out_index, data_size_X,n,kk,m,dy)//lots of privatizing
+#pragma omp parallel for num_threads(16) firstprivate( x, i, k,out_index, data_size_X,n,kk,m)//lots of privatizing
         for(int y = kern_cent_Y; y < data_size_Y - kern_cent_Y; y++){ // the y coordinate of the output location we're focusing on
+
+	       for (x = 0; x < kern_cent_X; x ++) {
+		     for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
+		            for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
+                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
+                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
+                                        }
+                                }
+                        }
+                }
                 for(x = kern_cent_X; x + 31 < data_size_X - kern_cent_X; x+=32){ // the x coordinate of the output location we're focusing on
                         out_index = out+x+y*data_size_X;
                         n =  _mm_setzero_ps(); //getting the next four values of output matrix
@@ -189,7 +135,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                         _mm_storeu_ps(out_index,n);
                 }
 
-                for (;x+3<data_size_X - 1;x+=4) {
+                for (;x+3<data_size_X - kern_cent_X;x+=4) {
                         out_index = out+x+y*data_size_X;
                         n = _mm_setzero_ps();
                         for (int i = 0; i < kernsize;i++) { //iterating through kernal               
@@ -200,16 +146,37 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
                         _mm_storeu_ps(out_index,n);
                 }
 
-                for(;x<data_size_X - 1;x++) {
+                for(;x<data_size_X - kern_cent_X;x++) {
                         float sum = 0.0;
                         for (int i = 0; i<kernsize;i++) {
                                 sum += in[x-kern_cent_X+i%KERNX+(y-kern_cent_Y+i/KERNX)*data_size_X]*k[i];
                         }
                         out[x+y*data_size_X] = sum;
                 }
+	       for (x = data_size_X-kern_cent_X; x < data_size_X; x ++) {
+		    for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
+		            for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
+                                
+                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
+                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
+                                        }
+                                }
+                        }
+                }
         }
-        //end convo loop
-        //y_prev = y_cap - 2;
-        //}
+
+	//bottom part
+ 	for (int y = data_size_Y-kern_cent_Y; y < data_size_Y; y ++) {
+                for (int x = 0; x < data_size_X; x++) {
+		     for (int j = -kern_cent_Y; j <= kern_cent_Y; j++) {
+                        for (int i = -kern_cent_X; i <= kern_cent_X; i++) {
+                               
+                                        if (x + i > -1 && x + i < data_size_X && y + j > -1 && y + j < data_size_Y) {
+                                                out[x + y * data_size_X] += kernel[(kern_cent_X - i) + (kern_cent_Y - j) * KERNX] * in[(x + i) + (y + j) * data_size_X];
+                                        }
+                                }
+                        }
+                }
+        } 
 return 1;
 }
